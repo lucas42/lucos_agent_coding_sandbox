@@ -93,6 +93,14 @@ provision:
         apt-get install -y gh
       fi
 
+      # Install Claude Code system-wide via npm.
+      # Must run as root (mode: system) because npm's global prefix is /usr,
+      # and the Lima user does not have write permission to /usr/lib/node_modules.
+      # Running npm install -g as the unprivileged user silently fails with EACCES.
+      if ! command -v claude &>/dev/null; then
+        npm install -g @anthropic-ai/claude-code
+      fi
+
   # -------------------------------------------------------------------------
   # Deploy setup-repos.sh to the user's home directory.
   # Lima embeds the file content at instance creation time, so the host file
@@ -105,17 +113,12 @@ provision:
     permissions: "0755"
 
   # -------------------------------------------------------------------------
-  # User-level: configure git and install Claude Code
+  # User-level: configure git identity and defaults
   # -------------------------------------------------------------------------
   - mode: user
     script: |
       #!/bin/bash
       set -euo pipefail
-
-      # Install Claude Code globally via npm
-      if ! command -v claude &>/dev/null; then
-        npm install -g @anthropic-ai/claude-code
-      fi
 
       # Git identity for lucos-agent[bot]
       # App ID 2943201 — noreply email uses the GitHub App bot format.
