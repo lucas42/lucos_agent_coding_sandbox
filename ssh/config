@@ -1,0 +1,12 @@
+Host creds.l42.eu
+    HostName creds.l42.eu
+    Port 2202
+    User lucos-agent-coding-sandbox
+    IdentityFile ~/.ssh/id_ed25519_lucos_agent
+    IdentitiesOnly yes
+
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519_lucos_agent
+    IdentitiesOnly yes
