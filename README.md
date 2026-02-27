@@ -1,2 +1,2 @@
-# lucos_agent_coding_sandbox
+# lucOS Agent Coding Sandbox
 A sandbox for running AI coding agents inside
