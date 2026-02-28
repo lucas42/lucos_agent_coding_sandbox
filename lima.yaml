@@ -101,6 +101,52 @@ provision:
         npm install -g @anthropic-ai/claude-code
       fi
 
+      # Install Go from the official tarball.
+      # Ubuntu 24.04's apt package is Go 1.22, but lucos projects require >= 1.23
+      # (lucos_creds uses golang:1.26). We install from the upstream tarball to
+      # get a current, reproducible version. Architecture is detected at runtime
+      # so this script works on both x86_64 (amd64) and aarch64 (arm64) VMs.
+      # dpkg --print-architecture returns 'amd64' or 'arm64', matching Go's naming.
+      GO_VERSION="1.26.0"
+      if [ ! -d /usr/local/go ] || ! /usr/local/go/bin/go version 2>/dev/null | grep -q "go${GO_VERSION}"; then
+        GOARCH=$(dpkg --print-architecture)
+        curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz" -o /tmp/go.tar.gz
+        rm -rf /usr/local/go
+        tar -C /usr/local -xzf /tmp/go.tar.gz
+        rm /tmp/go.tar.gz
+        echo 'export PATH=$PATH:/usr/local/go/bin' > /etc/profile.d/go.sh
+        chmod +x /etc/profile.d/go.sh
+      fi
+
+      # Install Docker Engine + Docker Compose v2 (CLI plugin) via official apt repo.
+      # We use the Docker-maintained repository rather than Ubuntu's docker.io package,
+      # which is often significantly behind upstream and doesn't include compose v2.
+      # compose v2 is the 'docker compose' CLI plugin (not the standalone docker-compose).
+      if ! command -v docker &>/dev/null; then
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+          | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        chmod a+r /etc/apt/keyrings/docker.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+          | tee /etc/apt/sources.list.d/docker.list > /dev/null
+        apt-get update -q
+        apt-get install -y -q \
+          docker-ce \
+          docker-ce-cli \
+          containerd.io \
+          docker-buildx-plugin \
+          docker-compose-plugin
+        systemctl enable docker
+      fi
+
+      # Add the VM user to the docker group so docker commands work without sudo.
+      # Lima exposes the primary user as {{.User}}; we use the shell variable directly.
+      LIMA_USER=$(id -nu 1000 2>/dev/null || echo "")
+      if [ -n "$LIMA_USER" ] && ! id -nG "$LIMA_USER" | grep -qw docker; then
+        usermod -aG docker "$LIMA_USER"
+      fi
+
   # -------------------------------------------------------------------------
   # Deploy setup-repos.sh to the user's home directory.
   # Lima embeds the file content at instance creation time, so the host file
