@@ -178,6 +178,26 @@ for REPO_URL in "${REPOS[@]}"; do
     fi
 done
 
+# ---------------------------------------------------------------------------
+# Step 7: Install cron job for auto-committing agent memory changes
+# ---------------------------------------------------------------------------
+echo ""
+echo "Installing cron job for agent memory auto-commit..."
+
+CRON_SCRIPT="$HOME/.claude/scripts/commit-agent-memory.sh"
+CRON_LOG="$HOME/.claude/scripts/commit-agent-memory.log"
+CRON_ENTRY="*/15 * * * * $CRON_SCRIPT >> $CRON_LOG 2>&1"
+
+if crontab -l 2>/dev/null | grep -qF "$CRON_SCRIPT"; then
+    echo "Cron job already installed -- skipping."
+else
+    # Append to any existing crontab entries (or start fresh if none)
+    ( crontab -l 2>/dev/null; echo "$CRON_ENTRY" ) | crontab -
+    echo "Cron job installed: runs every 15 minutes."
+    echo "  Script: $CRON_SCRIPT"
+    echo "  Log:    $CRON_LOG"
+fi
+
 echo ""
 echo "======================================================="
 echo "  Setup complete!"
