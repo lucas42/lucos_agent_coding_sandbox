@@ -258,13 +258,11 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
       #!/bin/bash
       set -euo pipefail
 
-      # Git identity for lucos-agent[bot]
-      # The noreply email must use the bot's GitHub *user* ID (263775988), NOT
-      # the App ID (2943201). These are different values. GitHub links commits
-      # to bot avatars via the user ID. Using the App ID produces a grey ghost.
-      # User ID confirmed via: GET /users/lucos-agent%5Bbot%5D → .id
-      git config --global user.name "lucos-agent[bot]"
-      git config --global user.email "263775988+lucos-agent[bot]@users.noreply.github.com"
+      # No global git identity is set. Every persona must supply identity
+      # explicitly via `git -c user.name=... -c user.email=...` on each
+      # commit-writing command. A bare `git commit` without -c flags will fail
+      # with "Author identity unknown" — this is intentional; it turns a
+      # silent misattribution into a loud, obvious error.
 
       # Use SSH for all GitHub operations (HTTPS won't work without tokens)
       git config --global url."git@github.com:".insteadOf "https://github.com/"
