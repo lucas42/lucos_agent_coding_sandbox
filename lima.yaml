@@ -76,6 +76,48 @@ provision:
         python3-pip \
         python3-venv
 
+      # Enable x86_64 emulation on aarch64 hosts.
+      # Android build-tools (aapt2) and platform-tools (adb) ship as dynamically
+      # linked x86_64 ELF binaries — they will not execute on a native aarch64 kernel
+      # without this setup. The JVM-based SDK tools (sdkmanager, d8, apksigner) work
+      # fine on aarch64 without emulation.
+      #
+      # The approach: qemu-user-static registers a binfmt interpreter for x86_64 ELF
+      # binaries, and libc6:amd64 supplies the x86_64 glibc that the binaries link
+      # against. Together they allow transparent x86_64 emulation for individual
+      # processes — no x86_64 container or VM required.
+      #
+      # Multiarch setup (aarch64 only — this block is a no-op on x86_64 VMs):
+      # - dpkg foreign architecture amd64 is registered so apt can install :amd64 packages
+      # - ubuntu.sources is constrained to arm64 to avoid sending amd64 requests to
+      #   ports.ubuntu.com (which only carries arm64 packages and returns 404 for amd64)
+      # - a separate ubuntu-amd64.sources is added pointing to archive.ubuntu.com
+      #   (the standard Ubuntu mirror that carries amd64 packages)
+      if [ "$(uname -m)" = "aarch64" ]; then
+        if ! dpkg --print-foreign-architectures | grep -q amd64; then
+          dpkg --add-architecture amd64
+
+          # Constrain the cloud-init-generated ubuntu.sources to arm64 only.
+          # ports.ubuntu.com does not carry amd64 packages and returns 404 if asked.
+          # We use sed to insert 'Architectures: arm64' after each 'Types: deb' line.
+          sed -i '/^Types: deb/a Architectures: arm64' /etc/apt/sources.list.d/ubuntu.sources
+
+          # Add a separate amd64 source pointing to the standard Ubuntu archive.
+          # (Written with printf to avoid heredoc indentation issues in YAML.)
+          printf '%s\n' \
+            'Types: deb' \
+            'URIs: http://archive.ubuntu.com/ubuntu' \
+            'Suites: noble noble-updates noble-security' \
+            'Components: main universe restricted multiverse' \
+            'Architectures: amd64' \
+            'Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg' \
+            > /etc/apt/sources.list.d/ubuntu-amd64.sources
+
+          apt-get update -q
+          apt-get install -y -q qemu-user-static libc6:amd64
+        fi
+      fi
+
       # Install Node.js 22 LTS via NodeSource
       if ! command -v node &>/dev/null; then
         curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
