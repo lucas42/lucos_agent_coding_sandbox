@@ -118,6 +118,56 @@ provision:
         chmod +x /etc/profile.d/go.sh
       fi
 
+      # Install JDK 17 (required by Gradle and Android build tools).
+      # openjdk-17-jdk is available in Ubuntu 24.04's standard repos and is the
+      # minimum version required by current Android Gradle Plugin.
+      if ! dpkg -s openjdk-17-jdk &>/dev/null; then
+        apt-get install -y -q openjdk-17-jdk
+      fi
+
+      # Install Android SDK command-line tools.
+      # We use the headless command-line tools only — no Android Studio.
+      # The zip is JVM-based and architecture-independent (works on x86_64 and aarch64).
+      # ANDROID_HOME is /opt/android-sdk; sdkmanager installs components beneath it.
+      # We pin the command-line tools version for reproducibility; update when newer
+      # SDK components require it.
+      ANDROID_SDK_ROOT="/opt/android-sdk"
+      CMDLINE_TOOLS_VERSION="14742923"
+      CMDLINE_TOOLS_ZIP="commandlinetools-linux-${CMDLINE_TOOLS_VERSION}_latest.zip"
+      if [ ! -d "${ANDROID_SDK_ROOT}/cmdline-tools/latest" ]; then
+        mkdir -p "${ANDROID_SDK_ROOT}/cmdline-tools"
+        curl -fsSL "https://dl.google.com/android/repository/${CMDLINE_TOOLS_ZIP}" \
+          -o "/tmp/${CMDLINE_TOOLS_ZIP}"
+        unzip -q "/tmp/${CMDLINE_TOOLS_ZIP}" -d "/tmp/cmdline-tools-extracted"
+        # The zip extracts to 'cmdline-tools/', rename to 'latest' as sdkmanager expects
+        mv "/tmp/cmdline-tools-extracted/cmdline-tools" "${ANDROID_SDK_ROOT}/cmdline-tools/latest"
+        rm -rf "/tmp/${CMDLINE_TOOLS_ZIP}" "/tmp/cmdline-tools-extracted"
+
+        # Set ANDROID_HOME for subsequent sdkmanager calls within this script
+        export ANDROID_HOME="${ANDROID_SDK_ROOT}"
+        export PATH="${PATH}:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools"
+
+        # Accept all SDK licences non-interactively, then install:
+        # - platform-tools (adb, etc.)
+        # - build-tools 34.0.0 (matches API 34)
+        # - platforms;android-34 (API 34 platform)
+        yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+        "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" \
+          "platform-tools" \
+          "build-tools;34.0.0" \
+          "platforms;android-34"
+
+        # Make the SDK directory world-readable so the unprivileged Lima user can use it
+        chmod -R a+rX "${ANDROID_SDK_ROOT}"
+      fi
+
+      # Export ANDROID_HOME and add SDK tools to PATH for all users
+      cat > /etc/profile.d/android-sdk.sh << 'ANDROID_EOF'
+export ANDROID_HOME="/opt/android-sdk"
+export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools"
+ANDROID_EOF
+      chmod +x /etc/profile.d/android-sdk.sh
+
       # Install Docker Engine + Docker Compose v2 (CLI plugin) via official apt repo.
       # We use the Docker-maintained repository rather than Ubuntu's docker.io package,
       # which is often significantly behind upstream and doesn't include compose v2.
