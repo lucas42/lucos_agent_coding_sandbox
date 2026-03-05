@@ -240,6 +240,71 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
       fi
 
   # -------------------------------------------------------------------------
+  # Fix DNS: prevent the LAN router (192.168.5.2, picked up via DHCP on eth0)
+  # from being used as a resolver. That router silently drops AAAA responses,
+  # causing all IPv6 DNS lookups to time out. The Lima host gateway
+  # (192.168.64.1) is used instead and responds correctly to AAAA queries.
+  #
+  # Three-part fix:
+  # 1. Remove the hardcoded 192.168.5.2 nameserver from the cloud-init netplan.
+  # 2. Add a netplan override (99-dns-override.yaml) that sets use-dns=false
+  #    and use-domains=false on eth0 — prevents DHCP from supplying DNS.
+  # 3. Add a resolved.conf drop-in that sets 192.168.64.1 as the global DNS,
+  #    so resolved falls back to the Lima host gateway for all resolution.
+  # 4. Disable cloud-init network config management so these changes survive
+  #    reboots and cloud-init re-runs.
+  # -------------------------------------------------------------------------
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -euo pipefail
+
+      # Remove the hardcoded 192.168.5.2 nameserver from the cloud-init netplan.
+      # cloud-init writes this on first boot; we scrub it here so it doesn't
+      # persist after the initial provision run.
+      python3 -c "
+      import yaml, sys
+      with open('/etc/netplan/50-cloud-init.yaml', 'r') as f:
+          config = yaml.safe_load(f)
+      eth0 = config['network']['ethernets'].get('eth0', {})
+      if 'nameservers' in eth0:
+          del eth0['nameservers']
+      with open('/etc/netplan/50-cloud-init.yaml', 'w') as f:
+          f.write(yaml.dump(config, default_flow_style=False))
+      "
+
+      # Prevent cloud-init from re-adding the nameserver on future boots.
+      echo 'network: {config: disabled}' > /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+
+      # Add a netplan override to disable eth0 DHCP DNS (belt-and-suspenders:
+      # even if the DHCP server offers 192.168.5.2, we won't use it).
+      cat > /etc/netplan/99-dns-override.yaml << 'NETPLAN_EOF'
+      network:
+        version: 2
+        ethernets:
+          eth0:
+            dhcp4-overrides:
+              use-dns: false
+              use-domains: false
+      NETPLAN_EOF
+      chmod 600 /etc/netplan/99-dns-override.yaml
+      # Strip the leading indentation introduced by the YAML heredoc context.
+      sed -i 's/^      //' /etc/netplan/99-dns-override.yaml
+
+      # Set the Lima host gateway (192.168.64.1) as the global DNS fallback.
+      mkdir -p /etc/systemd/resolved.conf.d
+      cat > /etc/systemd/resolved.conf.d/10-no-dhcp-dns.conf << 'RESOLVED_EOF'
+      [Resolve]
+      DNS=192.168.64.1
+      RESOLVED_EOF
+      # Strip the leading indentation.
+      sed -i 's/^      //' /etc/systemd/resolved.conf.d/10-no-dhcp-dns.conf
+
+      # Apply the new DNS configuration.
+      netplan apply
+      systemctl restart systemd-resolved
+
+  # -------------------------------------------------------------------------
   # Deploy setup-repos.sh to the user's home directory.
   # Lima embeds the file content at instance creation time, so the host file
   # does not need to be accessible after the VM is running.
