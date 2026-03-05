@@ -10,3 +10,10 @@ Host github.com
     User git
     IdentityFile ~/.ssh/id_ed25519_lucos_agent
     IdentitiesOnly yes
+
+Host *.s.l42.eu
+    User lucos-agent
+    IdentityFile ~/.ssh/id_ed25519_lucos_agent
+    IdentitiesOnly yes
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
