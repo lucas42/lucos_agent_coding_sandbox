@@ -211,7 +211,7 @@ ALIASES_ADDED=0
 for PERSONA_FILE in "$HOME/.claude/agents/lucos-"*.md; do
     [ -f "$PERSONA_FILE" ] || continue
     PERSONA_NAME=$(basename "$PERSONA_FILE" .md)
-    ALIAS_LINE="alias ${PERSONA_NAME}=\"claude --append-system-prompt-file ~/.claude/agents/${PERSONA_NAME}.md\""
+    ALIAS_LINE="alias ${PERSONA_NAME}=\"claude --append-system-prompt 'You are operating directly as the ${PERSONA_NAME} persona. Do not act as a dispatcher. Do not route tasks to other agents via the Task tool. The appended file below defines your identity and responsibilities.' --append-system-prompt-file ~/.claude/agents/${PERSONA_NAME}.md\""
     if grep -qF "alias ${PERSONA_NAME}=" "$BASH_ALIASES" 2>/dev/null; then
         echo "  [skip] alias $PERSONA_NAME already present"
     else
