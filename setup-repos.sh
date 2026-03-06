@@ -205,27 +205,32 @@ echo ""
 echo "Generating ~/.bash_aliases for lucos persona shortcuts..."
 
 BASH_ALIASES="$HOME/.bash_aliases"
-touch "$BASH_ALIASES"
+
+# Write the helper function and persona functions from scratch each time,
+# since the format may change between versions.
+{
+    echo '# Launch Claude Code directly as a specific lucos persona.'
+    echo '# Uses functions (not aliases) so process substitution works correctly.'
+    echo '_lucos_persona() {'
+    echo '    local persona="$1"; shift'
+    echo '    claude --append-system-prompt-file <('
+    echo '        echo "You are operating directly as the ${persona} persona. Do not act as a dispatcher. Do not route tasks to other agents via the Task tool."'
+    echo '        echo'
+    echo '        cat ~/.claude/agents/${persona}.md'
+    echo '    ) "$@"'
+    echo '}'
+} > "$BASH_ALIASES"
 
 ALIASES_ADDED=0
 for PERSONA_FILE in "$HOME/.claude/agents/lucos-"*.md; do
     [ -f "$PERSONA_FILE" ] || continue
     PERSONA_NAME=$(basename "$PERSONA_FILE" .md)
-    ALIAS_LINE="alias ${PERSONA_NAME}=\"claude --append-system-prompt 'You are operating directly as the ${PERSONA_NAME} persona. Do not act as a dispatcher. Do not route tasks to other agents via the Task tool. The appended file below defines your identity and responsibilities.' --append-system-prompt-file ~/.claude/agents/${PERSONA_NAME}.md\""
-    if grep -qF "alias ${PERSONA_NAME}=" "$BASH_ALIASES" 2>/dev/null; then
-        echo "  [skip] alias $PERSONA_NAME already present"
-    else
-        echo "$ALIAS_LINE" >> "$BASH_ALIASES"
-        echo "  [added] alias $PERSONA_NAME"
-        ALIASES_ADDED=$((ALIASES_ADDED + 1))
-    fi
+    echo "${PERSONA_NAME}() { _lucos_persona ${PERSONA_NAME} \"\$@\"; }" >> "$BASH_ALIASES"
+    echo "  [added] ${PERSONA_NAME}"
+    ALIASES_ADDED=$((ALIASES_ADDED + 1))
 done
 
-if [ "$ALIASES_ADDED" -eq 0 ]; then
-    echo "All aliases already present -- no changes made."
-else
-    echo "$ALIASES_ADDED alias(es) added to $BASH_ALIASES"
-fi
+echo "$ALIASES_ADDED persona function(s) written to $BASH_ALIASES"
 
 echo ""
 echo "======================================================="
