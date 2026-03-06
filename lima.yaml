@@ -339,5 +339,10 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
       # Create sandboxes directory for repository checkouts
       mkdir -p "$HOME/sandboxes"
 
+      # Default interactive shells to ~/sandboxes
+      if ! grep -q 'cd ~/sandboxes' "$HOME/.bashrc"; then
+        printf '\n# Default to the sandboxes directory for interactive sessions\ncd ~/sandboxes\n' >> "$HOME/.bashrc"
+      fi
+
       echo "Provision complete."
       echo "Run ~/setup-repos.sh to generate your SSH key and clone all repositories."
