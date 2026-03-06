@@ -198,6 +198,35 @@ else
     echo "  Log:    $CRON_LOG"
 fi
 
+# ---------------------------------------------------------------------------
+# Step 7.5: Generate ~/.bash_aliases for lucos persona shortcuts
+# ---------------------------------------------------------------------------
+echo ""
+echo "Generating ~/.bash_aliases for lucos persona shortcuts..."
+
+BASH_ALIASES="$HOME/.bash_aliases"
+touch "$BASH_ALIASES"
+
+ALIASES_ADDED=0
+for PERSONA_FILE in "$HOME/.claude/agents/lucos-"*.md; do
+    [ -f "$PERSONA_FILE" ] || continue
+    PERSONA_NAME=$(basename "$PERSONA_FILE" .md)
+    ALIAS_LINE="alias ${PERSONA_NAME}=\"claude --append-system-prompt-file ~/.claude/agents/${PERSONA_NAME}.md\""
+    if grep -qF "alias ${PERSONA_NAME}=" "$BASH_ALIASES" 2>/dev/null; then
+        echo "  [skip] alias $PERSONA_NAME already present"
+    else
+        echo "$ALIAS_LINE" >> "$BASH_ALIASES"
+        echo "  [added] alias $PERSONA_NAME"
+        ALIASES_ADDED=$((ALIASES_ADDED + 1))
+    fi
+done
+
+if [ "$ALIASES_ADDED" -eq 0 ]; then
+    echo "All aliases already present -- no changes made."
+else
+    echo "$ALIASES_ADDED alias(es) added to $BASH_ALIASES"
+fi
+
 echo ""
 echo "======================================================="
 echo "  Setup complete!"
