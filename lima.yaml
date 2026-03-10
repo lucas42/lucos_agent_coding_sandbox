@@ -193,11 +193,17 @@ provision:
         # - platform-tools (adb, etc.)
         # - build-tools 34.0.0 (matches API 34)
         # - platforms;android-34 (API 34 platform)
+        # - build-tools 35.0.0 (required by Android Gradle Plugin automatically)
+        # - build-tools 36.0.0 (matches API 36)
+        # - platforms;android-36 (API 36 platform — required by lucos_photos_android compileSdk = 36)
         yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
         "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" \
           "platform-tools" \
           "build-tools;34.0.0" \
-          "platforms;android-34"
+          "build-tools;35.0.0" \
+          "build-tools;36.0.0" \
+          "platforms;android-34" \
+          "platforms;android-36"
 
         # Make the SDK directory world-readable so the unprivileged Lima user can use it
         chmod -R a+rX "${ANDROID_SDK_ROOT}"
