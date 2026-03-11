@@ -135,14 +135,6 @@ provision:
         apt-get install -y gh
       fi
 
-      # Install Claude Code system-wide via npm.
-      # Must run as root (mode: system) because npm's global prefix is /usr,
-      # and the Lima user does not have write permission to /usr/lib/node_modules.
-      # Running npm install -g as the unprivileged user silently fails with EACCES.
-      if ! command -v claude &>/dev/null; then
-        npm install -g @anthropic-ai/claude-code
-      fi
-
       # Install Go from the official tarball.
       # Ubuntu 24.04's apt package is Go 1.22, but lucos projects require >= 1.23
       # (lucos_creds uses golang:1.26). We install from the upstream tarball to
@@ -334,6 +326,21 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
       # commit-writing command. A bare `git commit` without -c flags will fail
       # with "Author identity unknown" — this is intentional; it turns a
       # silent misattribution into a loud, obvious error.
+
+      # Install Claude Code in a user-writable npm global prefix.
+      # This is intentionally done as the user (not root) so that Claude's
+      # auto-update mechanism can write to the install directory without
+      # permission errors. The prefix is ~/.npm-global, and its bin directory
+      # is added to PATH in ~/.profile.
+      if ! command -v claude &>/dev/null; then
+        mkdir -p "$HOME/.npm-global"
+        npm config set prefix "$HOME/.npm-global"
+        npm install -g @anthropic-ai/claude-code
+        # Add ~/.npm-global/bin to PATH for login shells
+        if ! grep -q '.npm-global' "$HOME/.profile"; then
+          printf '\n# npm global prefix — user-writable, allows claude auto-update\nif [ -d "$HOME/.npm-global/bin" ] ; then\n    PATH="$HOME/.npm-global/bin:$PATH"\nfi\n' >> "$HOME/.profile"
+        fi
+      fi
 
       # Use SSH for all GitHub operations (HTTPS won't work without tokens)
       git config --global url."git@github.com:".insteadOf "https://github.com/"
