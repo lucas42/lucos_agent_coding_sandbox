@@ -238,17 +238,23 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
       fi
 
   # -------------------------------------------------------------------------
-  # Fix DNS: prevent the LAN router (192.168.5.2, picked up via DHCP on eth0)
-  # from being used as a resolver. That router silently drops AAAA responses,
-  # causing all IPv6 DNS lookups to time out. The Lima host gateway
-  # (192.168.64.1) is used instead and responds correctly to AAAA queries.
+  # Fix DNS: prevent the LAN router (picked up via DHCP on eth0) from being
+  # used as a resolver. That router silently drops AAAA responses, causing all
+  # IPv6 DNS lookups to time out. The Lima host gateway (host.lima.internal)
+  # is used instead and responds correctly to AAAA queries.
   #
-  # Three-part fix:
-  # 1. Remove the hardcoded 192.168.5.2 nameserver from the cloud-init netplan.
+  # The Lima host gateway IP is NOT hardcoded — it can change after host
+  # software updates. Instead, a systemd service reads it from /etc/hosts
+  # (which Lima updates on every boot) and writes it to resolved.conf.d
+  # before systemd-resolved starts.
+  #
+  # Four-part fix:
+  # 1. Remove any hardcoded nameserver from the cloud-init netplan.
   # 2. Add a netplan override (99-dns-override.yaml) that sets use-dns=false
   #    and use-domains=false on eth0 — prevents DHCP from supplying DNS.
-  # 3. Add a resolved.conf drop-in that sets 192.168.64.1 as the global DNS,
-  #    so resolved falls back to the Lima host gateway for all resolution.
+  # 3. Install update-dns-from-lima-host.service, which runs before
+  #    systemd-resolved on every boot and writes the current host.lima.internal
+  #    IP as the DNS= value in resolved.conf.d/10-no-dhcp-dns.conf.
   # 4. Disable cloud-init network config management so these changes survive
   #    reboots and cloud-init re-runs.
   # -------------------------------------------------------------------------
@@ -289,14 +295,57 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
       # Strip the leading indentation introduced by the YAML heredoc context.
       sed -i 's/^      //' /etc/netplan/99-dns-override.yaml
 
-      # Set the Lima host gateway (192.168.64.1) as the global DNS fallback.
+      # Set the Lima host gateway as the global DNS fallback.
+      # We do NOT hardcode the IP — Lima updates /etc/hosts with the current
+      # host.lima.internal IP on every boot, so we read it from there at boot time
+      # via a systemd service that runs before systemd-resolved starts.
       mkdir -p /etc/systemd/resolved.conf.d
-      cat > /etc/systemd/resolved.conf.d/10-no-dhcp-dns.conf << 'RESOLVED_EOF'
-      [Resolve]
-      DNS=192.168.64.1
-      RESOLVED_EOF
+
+      # Create the boot-time script that reads host.lima.internal from /etc/hosts
+      # and writes the resolved config with the current IP.
+      cat > /usr/local/sbin/update-dns-from-lima-host.sh << 'UPDATEDNS_EOF'
+      #!/bin/bash
+      # Reads the current IP of host.lima.internal from /etc/hosts (written by Lima
+      # on every boot) and writes it as the DNS= value in systemd-resolved config.
+      # This avoids hardcoding an IP that may change after host software updates.
+      set -euo pipefail
+      LIMA_HOST_IP=$(awk '/[[:space:]]host\.lima\.internal([[:space:]]|$)/ { print $1; exit }' /etc/hosts)
+      if [ -z "$LIMA_HOST_IP" ]; then
+        echo "update-dns-from-lima-host: host.lima.internal not found in /etc/hosts, leaving DNS config unchanged" >&2
+        exit 0
+      fi
+      mkdir -p /etc/systemd/resolved.conf.d
+      printf '[Resolve]\nDNS=%s\n' "$LIMA_HOST_IP" > /etc/systemd/resolved.conf.d/10-no-dhcp-dns.conf
+      echo "update-dns-from-lima-host: set DNS to $LIMA_HOST_IP"
+      UPDATEDNS_EOF
       # Strip the leading indentation.
-      sed -i 's/^      //' /etc/systemd/resolved.conf.d/10-no-dhcp-dns.conf
+      sed -i 's/^      //' /usr/local/sbin/update-dns-from-lima-host.sh
+      chmod 755 /usr/local/sbin/update-dns-from-lima-host.sh
+
+      # Create a systemd unit that runs the script before systemd-resolved starts.
+      cat > /etc/systemd/system/update-dns-from-lima-host.service << 'UNIT_EOF'
+      [Unit]
+      Description=Update systemd-resolved DNS from host.lima.internal /etc/hosts entry
+      Before=systemd-resolved.service
+      After=local-fs.target
+      DefaultDependencies=no
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/update-dns-from-lima-host.sh
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=sysinit.target
+      UNIT_EOF
+      # Strip the leading indentation.
+      sed -i 's/^      //' /etc/systemd/system/update-dns-from-lima-host.service
+
+      systemctl daemon-reload
+      systemctl enable update-dns-from-lima-host.service
+
+      # Run the script now (initial provision) to write the resolved config.
+      /usr/local/sbin/update-dns-from-lima-host.sh
 
       # Apply the new DNS configuration.
       netplan apply
