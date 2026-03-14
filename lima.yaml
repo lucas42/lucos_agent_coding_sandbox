@@ -280,8 +280,11 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
       # Prevent cloud-init from re-adding the nameserver on future boots.
       echo 'network: {config: disabled}' > /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
 
-      # Add a netplan override to disable eth0 DHCP DNS (belt-and-suspenders:
-      # even if the DHCP server offers 192.168.5.2, we won't use it).
+      # Add a netplan override to:
+      # - disable eth0 DHCP DNS (belt-and-suspenders: even if the DHCP server
+      #   offers 192.168.5.2, we won't use it).
+      # - add 8.8.8.8/8.8.4.4 as fallback DNS for lima0, so that if the Lima
+      #   DNS proxy (192.168.64.1) is unavailable, resolution still works.
       cat > /etc/netplan/99-dns-override.yaml << 'NETPLAN_EOF'
       network:
         version: 2
@@ -290,6 +293,11 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
             dhcp4-overrides:
               use-dns: false
               use-domains: false
+          lima0:
+            nameservers:
+              addresses:
+                - 8.8.8.8
+                - 8.8.4.4
       NETPLAN_EOF
       chmod 600 /etc/netplan/99-dns-override.yaml
       # Strip the leading indentation introduced by the YAML heredoc context.
