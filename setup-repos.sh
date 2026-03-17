@@ -73,6 +73,25 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Step 2.5: Install known_hosts for production hosts
+# ---------------------------------------------------------------------------
+KNOWN_HOSTS="$HOME/.ssh/known_hosts"
+REPO_KNOWN_HOSTS="$(dirname "$0")/ssh/known_hosts"
+
+if [ -f "$REPO_KNOWN_HOSTS" ]; then
+    # Append any entries not already present (idempotent)
+    while IFS= read -r line; do
+        if [ -n "$line" ] && ! grep -qF "$line" "$KNOWN_HOSTS" 2>/dev/null; then
+            echo "$line" >> "$KNOWN_HOSTS"
+        fi
+    done < "$REPO_KNOWN_HOSTS"
+    chmod 600 "$KNOWN_HOSTS"
+    echo "Production host keys installed in $KNOWN_HOSTS."
+else
+    echo "WARNING: ssh/known_hosts not found in repo -- skipping."
+fi
+
+# ---------------------------------------------------------------------------
 # Step 3: Test GitHub SSH connectivity
 # ---------------------------------------------------------------------------
 echo ""
