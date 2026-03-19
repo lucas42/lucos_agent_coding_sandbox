@@ -371,6 +371,17 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
     permissions: "0755"
 
   # -------------------------------------------------------------------------
+  # Deploy ssh/known_hosts to the user's home directory.
+  # This is used by the user provision step below to populate ~/.ssh/known_hosts
+  # on every boot, not just at initial setup.
+  # -------------------------------------------------------------------------
+  - mode: data
+    path: "{{.Home}}/ssh/known_hosts"
+    file: ssh/known_hosts
+    owner: "{{.User}}"
+    permissions: "0644"
+
+  # -------------------------------------------------------------------------
   # User-level: configure git identity and defaults
   # -------------------------------------------------------------------------
   - mode: user
@@ -408,6 +419,23 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
 
       # Create sandboxes directory for repository checkouts
       mkdir -p "$HOME/sandboxes"
+
+      # Install production SSH host keys on every boot.
+      # ~/.ssh/known_hosts can be cleared between Lima sessions; installing the
+      # keys here (from the embedded ssh/known_hosts data file) ensures SSH to
+      # production hosts works without requiring a manual ssh-keyscan each time.
+      mkdir -p "$HOME/.ssh"
+      chmod 700 "$HOME/.ssh"
+      KNOWN_HOSTS="$HOME/.ssh/known_hosts"
+      REPO_KNOWN_HOSTS="$HOME/ssh/known_hosts"
+      if [ -f "$REPO_KNOWN_HOSTS" ]; then
+        while IFS= read -r line; do
+          if [ -n "$line" ] && ! grep -qF "$line" "$KNOWN_HOSTS" 2>/dev/null; then
+            echo "$line" >> "$KNOWN_HOSTS"
+          fi
+        done < "$REPO_KNOWN_HOSTS"
+        chmod 600 "$KNOWN_HOSTS"
+      fi
 
       # Default interactive shells to ~/sandboxes
       if ! grep -q 'cd ~/sandboxes' "$HOME/.bashrc"; then
