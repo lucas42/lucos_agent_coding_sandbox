@@ -258,6 +258,17 @@ echo "alias tmux-claude='tmux new-session -A -s main claude'" >> "$BASH_ALIASES"
 
 echo "$ALIASES_ADDED persona function(s) written to $BASH_ALIASES"
 
+# ---------------------------------------------------------------------------
+# Step 7.6: Configure ~/.tmux.conf
+# ---------------------------------------------------------------------------
+echo ""
+echo "Configuring ~/.tmux.conf..."
+TMUX_CONF="$HOME/.tmux.conf"
+if ! grep -q 'mouse on' "$TMUX_CONF" 2>/dev/null; then
+  echo "set -g mouse on" >> "$TMUX_CONF"
+  echo "  [added] mouse support"
+fi
+
 echo ""
 echo "======================================================="
 echo "  Setup complete!"
