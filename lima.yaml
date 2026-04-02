@@ -437,12 +437,6 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
         chmod 600 "$KNOWN_HOSTS"
       fi
 
-      # Auto-attach to tmux on login so Claude teammates inherit bypassPermissions mode.
-      # Teammates spawned as subprocesses (tmux backend) inherit the parent session's
-      # permission mode; in-process teammates do not. This ensures bypassPermissions works.
-      if ! grep -q 'Auto-attach to tmux' "$HOME/.bashrc"; then
-        printf '\n# Auto-attach to tmux on login so Claude teammates inherit bypassPermissions mode.\n# Teammates spawned as subprocesses (tmux backend) inherit the parent session'"'"'s\n# permission mode; in-process teammates do not. This ensures bypassPermissions works.\nif [ -z "$TMUX" ] && command -v tmux &>/dev/null; then\n  tmux attach-session -t main 2>/dev/null || tmux new-session -s main\nfi\n' >> "$HOME/.bashrc"
-      fi
 
       # Default interactive shells to ~/sandboxes
       if ! grep -q 'cd ~/sandboxes' "$HOME/.bashrc"; then
