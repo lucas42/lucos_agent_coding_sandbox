@@ -249,6 +249,13 @@ for PERSONA_FILE in "$HOME/.claude/agents/lucos-"*.md; do
     ALIASES_ADDED=$((ALIASES_ADDED + 1))
 done
 
+# Add tmux-claude alias: starts (or re-attaches to) a tmux session running Claude.
+# Claude teammates use the tmux backend and inherit bypassPermissions from this session.
+echo "" >> "$BASH_ALIASES"
+echo "# Start (or re-attach to) a tmux session running Claude." >> "$BASH_ALIASES"
+echo "# Claude teammates use the tmux backend and inherit bypassPermissions from this session." >> "$BASH_ALIASES"
+echo "alias tmux-claude='tmux new-session -A -s main claude'" >> "$BASH_ALIASES"
+
 echo "$ALIASES_ADDED persona function(s) written to $BASH_ALIASES"
 
 echo ""

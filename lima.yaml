@@ -437,6 +437,7 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
         chmod 600 "$KNOWN_HOSTS"
       fi
 
+
       # Default interactive shells to ~/sandboxes
       if ! grep -q 'cd ~/sandboxes' "$HOME/.bashrc"; then
         printf '\n# Default to the sandboxes directory for interactive sessions\ncd ~/sandboxes\n' >> "$HOME/.bashrc"
