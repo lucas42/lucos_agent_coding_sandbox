@@ -410,6 +410,15 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
         fi
       fi
 
+      # Add ~/sandboxes/lucos_agent to PATH so gh-as-agent, git-as-agent, etc.
+      # are available as bare commands in both interactive and login shells.
+      if ! grep -q 'lucos_agent' "$HOME/.profile"; then
+        printf '\n# lucos_agent scripts (gh-as-agent, git-as-agent, get-token, etc.)\nif [ -d "$HOME/sandboxes/lucos_agent" ] ; then\n    PATH="$HOME/sandboxes/lucos_agent:$PATH"\nfi\n' >> "$HOME/.profile"
+      fi
+      if ! grep -q 'lucos_agent' "$HOME/.bashrc"; then
+        printf '\n# lucos_agent scripts (gh-as-agent, git-as-agent, get-token, etc.)\nif [ -d "$HOME/sandboxes/lucos_agent" ] ; then\n    PATH="$HOME/sandboxes/lucos_agent:$PATH"\nfi\n' >> "$HOME/.bashrc"
+      fi
+
       # Use SSH for all GitHub operations (HTTPS won't work without tokens)
       git config --global url."git@github.com:".insteadOf "https://github.com/"
 
