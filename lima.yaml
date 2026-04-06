@@ -416,7 +416,7 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
         printf '\n# lucos_agent scripts (gh-as-agent, git-as-agent, get-token, etc.)\nif [ -d "$HOME/sandboxes/lucos_agent" ] ; then\n    PATH="$HOME/sandboxes/lucos_agent:$PATH"\nfi\n' >> "$HOME/.profile"
       fi
       if ! grep -q 'lucos_agent' "$HOME/.bashrc"; then
-        printf '\n# lucos_agent scripts (gh-as-agent, git-as-agent, get-token, etc.)\nPATH="$HOME/sandboxes/lucos_agent:$PATH"\nexport PATH\n' >> "$HOME/.bashrc"
+        printf '\n# lucos_agent scripts (gh-as-agent, git-as-agent, get-token, etc.)\nif [ -d "$HOME/sandboxes/lucos_agent" ] ; then\n    PATH="$HOME/sandboxes/lucos_agent:$PATH"\nfi\n' >> "$HOME/.bashrc"
       fi
 
       # Use SSH for all GitHub operations (HTTPS won't work without tokens)
