@@ -118,7 +118,7 @@ Re-running the setup script inside the VM is safe and idempotent:
   (`~/.ssh/id_ed25519_lucos_agent`).
 
 - **Isolated identity**: Git commits from inside the VM are attributed to
-  `lucos-agent[bot]` (`2943201+lucos-agent[bot]@users.noreply.github.com`),
+  `lucos-agent[bot]` (`263775988+lucos-agent[bot]@users.noreply.github.com`),
   making it clear which commits originated from the sandboxed agent.
 
 - **Network access**: The VM has outbound internet access (via vzNAT) so
@@ -177,7 +177,7 @@ git -C ~/.claude pull
 Git commits authored by Claude inside this VM use:
 
 - **Name**: `lucos-agent[bot]`
-- **Email**: `2943201+lucos-agent[bot]@users.noreply.github.com`
+- **Email**: `263775988+lucos-agent[bot]@users.noreply.github.com`
 
-The number `2943201` is the GitHub App ID for the `lucos-agent` GitHub App.
+The number `263775988` is the **bot user ID** for the `lucos-agent[bot]` account — not the App ID (which is `2943201`).
 This is the standard GitHub noreply email format for bot accounts.
