@@ -457,6 +457,26 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
         printf '\n# Default to the sandboxes directory for interactive sessions\ncd ~/sandboxes\n' >> "$HOME/.bashrc"
       fi
 
+      # Create ~/sandboxes/.mcp.json for arachne MCP server authentication.
+      # Uses ${KEY_LUCOS_ARACHNE} which is expanded from the environment at runtime.
+      # This must live in .mcp.json (not settings.json) — Claude Code only supports
+      # ${VAR} expansion in headers for .mcp.json files.
+      if [ ! -f "$HOME/sandboxes/.mcp.json" ]; then
+        cat > "$HOME/sandboxes/.mcp.json" <<'MCPEOF'
+{
+  "mcpServers": {
+    "arachne": {
+      "type": "http",
+      "url": "https://arachne.l42.eu/mcp",
+      "headers": {
+        "Authorization": "Bearer ${KEY_LUCOS_ARACHNE}"
+      }
+    }
+  }
+}
+MCPEOF
+      fi
+
       # Set up cron jobs for Claude agent maintenance tasks.
       # We use a temp file and install idempotently — if an entry is already present
       # it won't be duplicated.
