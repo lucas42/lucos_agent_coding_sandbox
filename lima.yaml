@@ -457,5 +457,24 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
         printf '\n# Default to the sandboxes directory for interactive sessions\ncd ~/sandboxes\n' >> "$HOME/.bashrc"
       fi
 
+      # Set up cron jobs for Claude agent maintenance tasks.
+      # We use a temp file and install idempotently — if an entry is already present
+      # it won't be duplicated.
+      CRON_TMP=$(mktemp)
+      crontab -l 2>/dev/null > "$CRON_TMP" || true
+
+      COMMIT_ENTRY="*/15 * * * * $HOME/.claude/scripts/commit-agent-memory.sh >> $HOME/.claude/scripts/commit-agent-memory.log 2>&1"
+      if ! grep -qF "commit-agent-memory.sh" "$CRON_TMP"; then
+        echo "$COMMIT_ENTRY" >> "$CRON_TMP"
+      fi
+
+      PRUNE_ENTRY="*/15 * * * * $HOME/.claude/scripts/prune-inboxes.sh >> $HOME/.claude/scripts/prune-inboxes.log 2>&1"
+      if ! grep -qF "prune-inboxes.sh" "$CRON_TMP"; then
+        echo "$PRUNE_ENTRY" >> "$CRON_TMP"
+      fi
+
+      crontab "$CRON_TMP"
+      rm -f "$CRON_TMP"
+
       echo "Provision complete."
       echo "Run ~/setup-repos.sh to generate your SSH key and clone all repositories."
