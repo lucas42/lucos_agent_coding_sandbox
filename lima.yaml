@@ -447,6 +447,11 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
       fi
 
 
+      # Export credentials from lucos_agent .env (provides KEY_LUCOS_ARACHNE etc for MCP)
+      if ! grep -q 'lucos_agent/.env' "$HOME/.bashrc"; then
+        printf '\n# Export credentials from lucos_agent .env (provides KEY_LUCOS_ARACHNE etc for MCP)\nif [ -f "$HOME/sandboxes/lucos_agent/.env" ]; then\n    set -a\n    source "$HOME/sandboxes/lucos_agent/.env"\n    set +a\nfi\n' >> "$HOME/.bashrc"
+      fi
+
       # Default interactive shells to ~/sandboxes
       if ! grep -q 'cd ~/sandboxes' "$HOME/.bashrc"; then
         printf '\n# Default to the sandboxes directory for interactive sessions\ncd ~/sandboxes\n' >> "$HOME/.bashrc"
