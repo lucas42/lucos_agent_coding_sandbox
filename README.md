@@ -125,6 +125,16 @@ Re-running the setup script inside the VM is safe and idempotent:
   Claude can clone repos and make API calls. It does not have any inbound
   access from the network.
 
+- **IPv6**: The VM does not have IPv6 connectivity (vzNAT is IPv4-only).
+  Some production hosts are IPv6-only — notably `salvare.s.l42.eu` has an
+  AAAA record but no A record. Agents must reach salvare via `xwing.s.l42.eu`
+  as a jump host:
+  ```bash
+  ssh -J xwing.s.l42.eu salvare.s.l42.eu
+  ```
+  A failed DNS lookup for `salvare.s.l42.eu` from inside this VM is not a DNS
+  incident — it is expected behaviour due to the IPv4-only network.
+
 - **Persistent storage**: The VM disk is persistent. Work survives VM
   restarts. This is intentional — ephemerality would mean losing in-progress
   work every time.
