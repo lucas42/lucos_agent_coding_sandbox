@@ -208,6 +208,21 @@ export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform
 ANDROID_EOF
       chmod +x /etc/profile.d/android-sdk.sh
 
+      # Install PHP 8.4 + Composer for testing PHP projects (e.g. lucos_media_metadata_manager).
+      # Ubuntu 24.04 ships PHP 8.3 only; ondrej/php PPA is the standard way to get 8.4.
+      # Extensions installed: xml and mbstring (required by PHPUnit); curl and zip (common).
+      # Composer is installed to /usr/local/bin so all users can run `composer install`.
+      if ! command -v php &>/dev/null || ! php --version 2>/dev/null | grep -q "PHP 8\.4"; then
+        add-apt-repository -y ppa:ondrej/php
+        apt-get update -q
+        apt-get install -y -q php8.4-cli php8.4-xml php8.4-mbstring php8.4-curl php8.4-zip
+      fi
+      if ! command -v composer &>/dev/null; then
+        curl -fsSL https://getcomposer.org/installer -o /tmp/composer-setup.php
+        php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+        rm -f /tmp/composer-setup.php
+      fi
+
       # Install Docker Engine + Docker Compose v2 (CLI plugin) via official apt repo.
       # We use the Docker-maintained repository rather than Ubuntu's docker.io package,
       # which is often significantly behind upstream and doesn't include compose v2.
