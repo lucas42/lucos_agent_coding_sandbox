@@ -14,14 +14,19 @@
 #   the root cause from logs — they had been wiped by the reboot.
 #
 # Design decisions:
-#   - Uses a drop-in config (/etc/systemd/journald.conf.d/10-lucos-persistent.conf)
+#   - Uses a drop-in config (/etc/systemd/journald.conf.d/50-lucos-persistent.conf)
 #     rather than modifying /etc/systemd/journald.conf directly. Drop-ins are
 #     more robust: they survive package updates that might regenerate the main
 #     config file, and they make our intent explicit.
+#   - Named 50- (not 10-) to sort after /usr/lib/systemd/journald.conf.d/40-rpi-volatile-storage.conf
+#     shipped by Raspberry Pi OS on Trixie hosts. Drop-ins are merged in sort order and
+#     last-value-wins; our 50- must come after their 40- or it gets overridden.
 #   - SystemMaxUse=500M caps disk usage to prevent runaway log growth on the
 #     Pi's SD card / SSD. Journald rotates automatically to stay within this.
 #   - Creates /var/log/journal/ explicitly. journald will create it on restart
 #     if it doesn't exist, but being explicit avoids any edge cases.
+#   - Runs `journalctl --flush` after restart to immediately migrate any existing
+#     volatile logs to persistent storage without requiring a full reboot.
 #   - Idempotent: safe to re-run on an already-configured host.
 #
 # Supported: Debian bookworm (12), Debian trixie (13).
@@ -61,9 +66,17 @@ echo ""
 echo "Step 2: Writing journald drop-in configuration..."
 
 DROP_IN_DIR="/etc/systemd/journald.conf.d"
-DROP_IN_FILE="${DROP_IN_DIR}/10-lucos-persistent.conf"
+DROP_IN_FILE="${DROP_IN_DIR}/50-lucos-persistent.conf"
+OLD_DROP_IN_FILE="${DROP_IN_DIR}/10-lucos-persistent.conf"
 
 mkdir -p "$DROP_IN_DIR"
+
+# Remove old 10- prefixed drop-in if it exists (was renamed to 50- to sort after
+# /usr/lib/systemd/journald.conf.d/40-rpi-volatile-storage.conf on Trixie hosts)
+if [ -f "$OLD_DROP_IN_FILE" ]; then
+    rm -f "$OLD_DROP_IN_FILE"
+    echo "  Removed old ${OLD_DROP_IN_FILE} (superseded by 50- prefixed file)"
+fi
 
 DESIRED_CONTENT="# lucos Pi host — persistent journal storage.
 # Managed by lucos_agent_coding_sandbox/pi-hosts/setup-journald.sh
@@ -90,6 +103,12 @@ echo "Step 3: Restarting systemd-journald..."
 
 systemctl restart systemd-journald
 echo "  systemd-journald restarted."
+
+# Flush any existing volatile logs to persistent storage immediately.
+# Without this, logs written before the restart remain in /run/log/journal/
+# until the next reboot. journalctl --flush signals journald to move them now.
+journalctl --flush
+echo "  journalctl --flush complete (volatile logs migrated to persistent storage)."
 
 # ---------------------------------------------------------------------------
 # Step 4: Verify setup
