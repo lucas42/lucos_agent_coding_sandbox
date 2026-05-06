@@ -119,17 +119,23 @@ echo "Step 4: Verifying setup..."
 EFFECTIVE_STORAGE=$(systemd-analyze cat-config systemd/journald.conf 2>/dev/null | grep '^Storage=' | tail -1 || echo "(not found)")
 echo "  Effective Storage setting: ${EFFECTIVE_STORAGE}"
 
-if journalctl --disk-usage &>/dev/null; then
-    echo "  Journal disk usage: $(journalctl --disk-usage 2>/dev/null | grep -oP 'Archived and active journals take up \K.*' || echo '(see journalctl --disk-usage)')"
+echo "  Journal disk usage: $(journalctl --disk-usage 2>/dev/null || echo '(see journalctl --disk-usage)')"
+
+JOURNAL_FILES=$(find /var/log/journal/ -name "*.journal" -o -name "*.journal~" 2>/dev/null | wc -l)
+echo "  Journal files in /var/log/journal/: ${JOURNAL_FILES}"
+
+echo ""
+if [ "$JOURNAL_FILES" -gt 0 ]; then
+    echo "Setup complete. Persistent storage is active — no reboot required."
+    echo "  ${JOURNAL_FILES} journal file(s) confirmed in /var/log/journal/"
+    echo "  Maximum disk usage capped at 500M (journald rotates automatically)"
+    echo ""
+    echo "To view logs: journalctl -b 0"
+    echo "To view logs from previous boots (after next reboot): journalctl -b -1"
+else
+    echo "WARNING: Setup complete, but no journal files found in /var/log/journal/ after flush."
+    echo "  This may indicate a permissions problem or that journald could not write to /var/log/journal/."
+    echo "  Check: ls -la /var/log/journal/"
+    echo "  Check: systemctl status systemd-journald"
+    echo "  A reboot will also cause journald to retry writing to persistent storage."
 fi
-
-JOURNAL_DIR_CONTENTS=$(ls /var/log/journal/ 2>/dev/null || echo "(empty)")
-echo "  /var/log/journal/ contents: ${JOURNAL_DIR_CONTENTS}"
-
-echo ""
-echo "Setup complete."
-echo "  Logs will now be stored persistently in /var/log/journal/"
-echo "  Maximum disk usage capped at 500M (journald rotates automatically)"
-echo ""
-echo "To verify: journalctl --disk-usage"
-echo "To view logs from previous boot: journalctl -b -1"
