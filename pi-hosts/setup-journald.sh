@@ -74,7 +74,7 @@ Storage=persistent
 SystemMaxUse=500M
 "
 
-if [ -f "$DROP_IN_FILE" ] && [ "$(cat "$DROP_IN_FILE")x" = "${DESIRED_CONTENT}x" ]; then
+if [ -f "$DROP_IN_FILE" ] && printf '%s' "$DESIRED_CONTENT" | cmp -s "$DROP_IN_FILE" -; then
     echo "  Drop-in config already correctly configured -- skipping."
 else
     printf '%s' "$DESIRED_CONTENT" > "$DROP_IN_FILE"
