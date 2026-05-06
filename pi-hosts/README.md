@@ -47,8 +47,8 @@ Note: Must be run as a user with passwordless sudo access (e.g. the `pi` user).
 
 **What it does:**
 - Creates `/var/log/journal/` with correct ownership
-- Writes a drop-in config at `/etc/systemd/journald.conf.d/10-lucos-persistent.conf` setting `Storage=persistent` and `SystemMaxUse=500M`
-- Restarts `systemd-journald` to apply changes immediately
+- Writes a drop-in config at `/etc/systemd/journald.conf.d/50-lucos-persistent.conf` setting `Storage=persistent` and `SystemMaxUse=500M` (named `50-` to sort after Raspberry Pi OS's `/usr/lib/systemd/journald.conf.d/40-rpi-volatile-storage.conf` on Trixie hosts)
+- Restarts `systemd-journald` and runs `journalctl --flush` to migrate any existing volatile logs immediately
 
 ## Active Pi Hosts
 
