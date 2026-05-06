@@ -74,10 +74,10 @@ Storage=persistent
 SystemMaxUse=500M
 "
 
-if [ -f "$DROP_IN_FILE" ] && [ "$(cat "$DROP_IN_FILE")" = "$DESIRED_CONTENT" ]; then
+if [ -f "$DROP_IN_FILE" ] && [ "$(cat "$DROP_IN_FILE")x" = "${DESIRED_CONTENT}x" ]; then
     echo "  Drop-in config already correctly configured -- skipping."
 else
-    echo "$DESIRED_CONTENT" > "$DROP_IN_FILE"
+    printf '%s' "$DESIRED_CONTENT" > "$DROP_IN_FILE"
     chmod 644 "$DROP_IN_FILE"
     echo "  Written ${DROP_IN_FILE}"
 fi
