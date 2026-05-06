@@ -31,6 +31,25 @@ Note: This must be run as a user with passwordless sudo access (e.g. the `pi` us
 - Enables daily apt periodic updates
 - Adds `/etc/sudoers.d/90-lucos-agent-apt-readonly` so `lucos-agent` can run `sudo apt list --upgradable`
 
+### `setup-journald.sh`
+
+Configures systemd journal storage to be persistent, so logs survive reboots.
+
+Background: Pi hosts default to `Storage=volatile`, storing logs only in RAM (`/run/log/journal/`). This means all system logs are permanently lost on every reboot, making post-incident investigation impossible.
+
+**Run once per host** (and again if re-provisioning):
+
+```bash
+ssh <host>.s.l42.eu 'sudo bash -s' < pi-hosts/setup-journald.sh
+```
+
+Note: Must be run as a user with passwordless sudo access (e.g. the `pi` user).
+
+**What it does:**
+- Creates `/var/log/journal/` with correct ownership
+- Writes a drop-in config at `/etc/systemd/journald.conf.d/10-lucos-persistent.conf` setting `Storage=persistent` and `SystemMaxUse=500M`
+- Restarts `systemd-journald` to apply changes immediately
+
 ## Active Pi Hosts
 
 - `salvare.s.l42.eu` — Debian bookworm (12), aarch64
