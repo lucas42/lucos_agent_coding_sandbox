@@ -74,7 +74,9 @@ provision:
         jq \
         python3 \
         python3-pip \
-        python3-venv
+        python3-venv \
+        libtag1-dev \
+        libchromaprint-dev
 
       # Enable x86_64 emulation on aarch64 hosts.
       # Android build-tools (aapt2) and platform-tools (adb) ship as dynamically
