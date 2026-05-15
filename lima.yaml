@@ -79,7 +79,29 @@ provision:
         libutfcpp-dev \
         libchromaprint-dev \
         libchromaprint-tools \
-        ffmpeg
+        ffmpeg \
+        autoconf \
+        m4 \
+        libncurses5-dev \
+        libncursesw5-dev
+
+      # Install libssl-dev for Erlang/OTP kerl builds.
+      # libssl-dev must exactly match the installed libssl3t64 runtime version.
+      # ports.ubuntu.com (the arm64 mirror) occasionally returns 404 for specific
+      # security-patched versions — when that happens, download from Launchpad directly.
+      if ! dpkg -s libssl-dev &>/dev/null; then
+        if apt-get install -y -q libssl-dev 2>/dev/null; then
+          echo "libssl-dev installed from apt"
+        else
+          LIBSSL3_VERSION=$(dpkg -l libssl3t64 2>/dev/null | awk '/^ii/{print $3}' | head -1)
+          ARCH=$(dpkg --print-architecture)
+          echo "apt failed for libssl-dev; trying Launchpad fallback (version ${LIBSSL3_VERSION} ${ARCH})"
+          curl -fsSL "https://launchpad.net/ubuntu/+archive/primary/+files/libssl-dev_${LIBSSL3_VERSION}_${ARCH}.deb" \
+            -o /tmp/libssl-dev.deb
+          dpkg -i /tmp/libssl-dev.deb
+          rm -f /tmp/libssl-dev.deb
+        fi
+      fi
 
       # Build TagLib 2.x from source.
       # Ubuntu 24.04 ships libtag1-dev v1.13.1 (TagLib 1.x), but pytaglib 3.x
@@ -516,6 +538,58 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
   }
 }
 MCPEOF
+      fi
+
+      # Install Erlang/OTP 29 via kerl (built from source).
+      # kerl lives in ~/.local/bin; the OTP installation goes to ~/.kerl/installs/otp29.
+      # We skip GUI components (wx, observer, debugger, megaco, et) — not needed for
+      # test execution, and they pull in large X11 dependencies.
+      #
+      # Version pinned to 29.0 to match: FROM erlang:29.0.0.0 in lucos_monitoring.
+      # WARNING: first run on a fresh VM takes ~15-25 minutes to compile from source.
+      # Erlang Solutions (the usual apt source for newer OTP) ships pre-built packages
+      # but doesn't reliably provide arm64 for all noble releases; kerl is more
+      # reproducible across architectures.
+      OTP_KERL_VERSION="29.0"
+      KERL_INSTALL_DIR="$HOME/.kerl/installs/otp29"
+      if [ ! -d "${KERL_INSTALL_DIR}/bin" ]; then
+        mkdir -p "$HOME/.local/bin"
+        curl -fsSL "https://raw.githubusercontent.com/kerl/kerl/master/kerl" \
+          -o "$HOME/.local/bin/kerl"
+        chmod +x "$HOME/.local/bin/kerl"
+
+        export KERL_BUILD_DOCS=no
+        export KERL_CONFIGURE_OPTIONS="--without-wx --without-observer --without-debugger --without-megaco --without-et"
+        "$HOME/.local/bin/kerl" build "${OTP_KERL_VERSION}" otp29
+        "$HOME/.local/bin/kerl" install otp29 "${KERL_INSTALL_DIR}"
+
+        # Clean up build artifacts (~1.5GB) — the installed copy is what matters
+        "$HOME/.local/bin/kerl" delete build otp29 2>/dev/null || true
+        rm -f "$HOME/.kerl/archives/otp_src_${OTP_KERL_VERSION}.tar.gz" 2>/dev/null || true
+      fi
+
+      # Install rebar3 standalone binary (used by Erlang projects, e.g. lucos_monitoring).
+      if [ ! -f "$HOME/.local/bin/rebar3" ]; then
+        mkdir -p "$HOME/.local/bin"
+        curl -fsSL "https://github.com/erlang/rebar3/releases/latest/download/rebar3" \
+          -o "$HOME/.local/bin/rebar3"
+        chmod +x "$HOME/.local/bin/rebar3"
+      fi
+
+      # Add ~/.local/bin (kerl, rebar3) to PATH in both interactive and login shells.
+      if ! grep -q '\.local/bin' "$HOME/.profile" 2>/dev/null; then
+        printf '\n# User-local binaries (kerl, rebar3, etc.)\nif [ -d "$HOME/.local/bin" ] ; then\n    PATH="$HOME/.local/bin:$PATH"\nfi\n' >> "$HOME/.profile"
+      fi
+      if ! grep -q '\.local/bin' "$HOME/.bashrc" 2>/dev/null; then
+        printf '\n# User-local binaries (kerl, rebar3, etc.)\nif [ -d "$HOME/.local/bin" ] ; then\n    PATH="$HOME/.local/bin:$PATH"\nfi\n' >> "$HOME/.bashrc"
+      fi
+
+      # Add Erlang OTP 29 bin to PATH in both interactive and login shells.
+      if ! grep -q 'kerl/installs' "$HOME/.profile" 2>/dev/null; then
+        printf '\n# Erlang OTP 29 (installed via kerl)\nif [ -d "$HOME/.kerl/installs/otp29/bin" ] ; then\n    PATH="$HOME/.kerl/installs/otp29/bin:$PATH"\nfi\n' >> "$HOME/.profile"
+      fi
+      if ! grep -q 'kerl/installs' "$HOME/.bashrc" 2>/dev/null; then
+        printf '\n# Erlang OTP 29 (installed via kerl)\nif [ -d "$HOME/.kerl/installs/otp29/bin" ] ; then\n    PATH="$HOME/.kerl/installs/otp29/bin:$PATH"\nfi\n' >> "$HOME/.bashrc"
       fi
 
       # Set up cron jobs for Claude agent maintenance tasks.
