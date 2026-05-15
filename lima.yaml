@@ -608,6 +608,16 @@ MCPEOF
         echo "$PRUNE_ENTRY" >> "$CRON_TMP"
       fi
 
+      # Weekly Docker build-cache + dangling-image prune (Sundays 03:00 UTC).
+      # Build cache accumulates silently with every docker build run and can fill
+      # the 100GB disk over weeks. `docker builder prune -f` removes all inactive
+      # build cache; `docker image prune -f` removes untagged dangling images.
+      # Neither command affects running containers or named/tagged images.
+      DOCKER_PRUNE_ENTRY="0 3 * * 0 docker builder prune -f >> $HOME/.claude/scripts/docker-prune.log 2>&1 && docker image prune -f >> $HOME/.claude/scripts/docker-prune.log 2>&1"
+      if ! grep -qF "docker builder prune" "$CRON_TMP"; then
+        echo "$DOCKER_PRUNE_ENTRY" >> "$CRON_TMP"
+      fi
+
       crontab "$CRON_TMP"
       rm -f "$CRON_TMP"
 
