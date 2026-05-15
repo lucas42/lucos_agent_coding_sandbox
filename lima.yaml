@@ -74,7 +74,33 @@ provision:
         jq \
         python3 \
         python3-pip \
-        python3-venv
+        python3-venv \
+        cmake \
+        libutfcpp-dev \
+        libchromaprint-dev \
+        libchromaprint-tools \
+        ffmpeg
+
+      # Build TagLib 2.x from source.
+      # Ubuntu 24.04 ships libtag1-dev v1.13.1 (TagLib 1.x), but pytaglib 3.x
+      # requires TagLib 2.x (the tvariant.h header was introduced in 2.0).
+      # Debian Trixie's libtag1-dev already provides 2.0.2, so this is only a
+      # problem on Ubuntu-based VMs. We build 2.0.2 from upstream source and
+      # install it to /usr/local so it takes precedence over any Ubuntu-packaged 1.x.
+      TAGLIB_VERSION="2.0.2"
+      if [ ! -f "/usr/local/include/taglib/tvariant.h" ]; then
+        cd /tmp
+        wget -q "https://github.com/taglib/taglib/releases/download/v${TAGLIB_VERSION}/taglib-${TAGLIB_VERSION}.tar.gz"
+        tar xzf "taglib-${TAGLIB_VERSION}.tar.gz"
+        cd "taglib-${TAGLIB_VERSION}"
+        mkdir build && cd build
+        cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local \
+              -DCMAKE_BUILD_TYPE=Release ..
+        make -j"$(nproc)"
+        make install
+        ldconfig
+        cd /tmp && rm -rf "taglib-${TAGLIB_VERSION}" "taglib-${TAGLIB_VERSION}.tar.gz"
+      fi
 
       # Enable x86_64 emulation on aarch64 hosts.
       # Android build-tools (aapt2) and platform-tools (adb) ship as dynamically
