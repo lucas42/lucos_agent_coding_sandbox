@@ -521,8 +521,6 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
       fi
 
       # career-advisor agent shorthand (not part of lucos team; uses --agent flag).
-      # Note: the lucos-* persona aliases in ~/.bash_aliases are not yet provisioned
-      # here — they are a known snowflake that should be added in a future pass.
       if ! grep -q 'career-advisor' "$HOME/.bash_aliases" 2>/dev/null; then
         printf '\n# Standalone career advisor agent (not part of the lucos team).\ncareer-advisor() { claude --agent career-advisor "$@"; }\n' >> "$HOME/.bash_aliases"
       fi
