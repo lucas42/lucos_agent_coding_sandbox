@@ -83,7 +83,8 @@ provision:
         autoconf \
         m4 \
         libncurses5-dev \
-        libncursesw5-dev
+        libncursesw5-dev \
+        tmux
 
       # Install libssl-dev for Erlang/OTP kerl builds.
       # libssl-dev must exactly match the installed libssl3t64 runtime version.
@@ -595,6 +596,19 @@ MCPEOF
       fi
       if ! grep -q 'kerl/installs' "$HOME/.bashrc" 2>/dev/null; then
         printf '\n# Erlang OTP 29 (installed via kerl)\nif [ -d "$HOME/.kerl/installs/otp29/bin" ] ; then\n    PATH="$HOME/.kerl/installs/otp29/bin:$PATH"\nfi\n' >> "$HOME/.bashrc"
+      fi
+
+      # Configure tmux for agent sessions.
+      # history-limit 50000: the default 2000-line limit is too low for long agent
+      # sessions — tmux capture-pane truncation can cause scroll-position desync,
+      # which may manifest as tool-result stalling followed by batch-flush with
+      # duplicated content (see lucos_agent_coding_sandbox#84). This is a
+      # belt-and-braces mitigation; root cause is upstream in the harness.
+      if [ ! -f "$HOME/.tmux.conf" ] || ! grep -q "history-limit" "$HOME/.tmux.conf"; then
+        printf '\nset -g history-limit 50000\n' >> "$HOME/.tmux.conf"
+      fi
+      if ! grep -q "mouse on" "$HOME/.tmux.conf"; then
+        printf '\nset -g mouse on\n' >> "$HOME/.tmux.conf"
       fi
 
       # Set up cron jobs for Claude agent maintenance tasks.
