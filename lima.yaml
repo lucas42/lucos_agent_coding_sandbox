@@ -302,6 +302,34 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
       fi
 
   # -------------------------------------------------------------------------
+  # Configure swap: create an 8 GiB swapfile to provide a memory safety valve.
+  #
+  # Without swap, when peak memory demand exceeds physical RAM (e.g. a full
+  # agent team — 8+ Claude processes at 250–470 MB RSS each, plus Fuseki at
+  # ~1.3 GB, plus Docker/containers) the kernel has no fallback: it must either
+  # stall all processes during page reclaim or fire the OOM killer. Adding swap
+  # allows the kernel to page out inactive memory rather than killing processes.
+  #
+  # 8 GiB matches the VM's physical RAM, giving a 2× headroom buffer.
+  # The block is idempotent: re-running provision on an existing VM is safe.
+  # -------------------------------------------------------------------------
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -euo pipefail
+
+      if [ ! -f /swapfile ]; then
+        fallocate -l 8G /swapfile
+        chmod 600 /swapfile
+        mkswap /swapfile
+        swapon /swapfile
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+        echo "Swap: 8G swapfile created, activated, and added to /etc/fstab"
+      else
+        echo "Swap: /swapfile already exists — skipping"
+      fi
+
+  # -------------------------------------------------------------------------
   # Fix DNS: prevent the LAN router (picked up via DHCP on eth0) from being
   # used as a resolver. That router silently drops AAAA responses, causing all
   # IPv6 DNS lookups to time out. The Lima host gateway (host.lima.internal)
