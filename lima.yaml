@@ -539,9 +539,10 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
       fi
 
 
-      # Export credentials from lucos_agent .env (provides KEY_LUCOS_ARACHNE etc for MCP)
+      # Export credentials from lucos_agent .env
+      # Provides LUCOS_ARCHITECT_AITHNE_CLIENT_SECRET (for arachne-mcp-proxy) and other agent keys.
       if ! grep -q 'lucos_agent/.env' "$HOME/.bashrc"; then
-        printf '\n# Export credentials from lucos_agent .env (provides KEY_LUCOS_ARACHNE etc for MCP)\nif [ -f "$HOME/sandboxes/lucos_agent/.env" ]; then\n    set -a\n    source "$HOME/sandboxes/lucos_agent/.env"\n    set +a\nfi\n' >> "$HOME/.bashrc"
+        printf '\n# Export credentials from lucos_agent .env\n# Provides LUCOS_ARCHITECT_AITHNE_CLIENT_SECRET (for arachne-mcp-proxy) and other agent keys.\nif [ -f "$HOME/sandboxes/lucos_agent/.env" ]; then\n    set -a\n    source "$HOME/sandboxes/lucos_agent/.env"\n    set +a\nfi\n' >> "$HOME/.bashrc"
       fi
 
       # Default interactive shells to ~/sandboxes
@@ -554,20 +555,17 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
         printf '\n# Standalone career advisor agent (not part of the lucos team).\ncareer-advisor() { claude --agent career-advisor "$@"; }\n' >> "$HOME/.bash_aliases"
       fi
 
-      # Create ~/sandboxes/.mcp.json for arachne MCP server authentication.
-      # Uses ${KEY_LUCOS_ARACHNE} which is expanded from the environment at runtime.
-      # This must live in .mcp.json (not settings.json) — Claude Code only supports
-      # ${VAR} expansion in headers for .mcp.json files.
+      # Create ~/sandboxes/.mcp.json — configures arachne MCP via stdio proxy.
+      # arachne-mcp-proxy (in lucos_agent) mints short-lived aithne JWTs via
+      # OAuth2 client-credentials and proxies stdio MCP to arachne's HTTP endpoint.
+      # LUCOS_ARCHITECT_AITHNE_CLIENT_SECRET is sourced from lucos_agent/.env above.
       if [ ! -f "$HOME/sandboxes/.mcp.json" ]; then
-        cat > "$HOME/sandboxes/.mcp.json" <<'MCPEOF'
+        cat > "$HOME/sandboxes/.mcp.json" <<MCPEOF
 {
   "mcpServers": {
     "arachne": {
-      "type": "http",
-      "url": "https://arachne.l42.eu/mcp",
-      "headers": {
-        "Authorization": "Bearer ${KEY_LUCOS_ARACHNE}"
-      }
+      "type": "stdio",
+      "command": "$HOME/sandboxes/lucos_agent/arachne-mcp-proxy"
     }
   }
 }
