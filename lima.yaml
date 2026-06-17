@@ -572,6 +572,37 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
 MCPEOF
       fi
 
+      # Seed enabledMcpjsonServers in ~/.claude.json so the arachne MCP server
+      # loads automatically in fresh sessions without requiring an interactive
+      # approval prompt (which never fires in the headless harness).
+      # .mcp.json alone is not sufficient — Claude Code needs explicit enablement
+      # per-project. We handle both: file-absent (create minimal seed) and
+      # file-present (merge in, preserving all existing fields).
+      python3 - << 'PYEOF'
+import json, os
+
+claude_json_path = os.path.expanduser('~/.claude.json')
+sandboxes_key = os.path.expanduser('~/sandboxes')
+
+try:
+    with open(claude_json_path, 'r') as f:
+        data = json.load(f)
+except FileNotFoundError:
+    data = {}
+
+data.setdefault('projects', {}).setdefault(sandboxes_key, {})
+proj = data['projects'][sandboxes_key]
+proj.setdefault('enabledMcpjsonServers', [])
+
+if 'arachne' not in proj['enabledMcpjsonServers']:
+    proj['enabledMcpjsonServers'].append('arachne')
+    with open(claude_json_path, 'w') as f:
+        json.dump(data, f, indent=2)
+    print('Added arachne to enabledMcpjsonServers in ~/.claude.json')
+else:
+    print('arachne already in enabledMcpjsonServers, no change needed')
+PYEOF
+
       # Install Erlang/OTP 29 via kerl (built from source).
       # kerl lives in ~/.local/bin; the OTP installation goes to ~/.kerl/installs/otp29.
       # We skip GUI components (wx, observer, debugger, megaco, et) — not needed for
