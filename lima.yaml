@@ -589,6 +589,9 @@ try:
         data = json.load(f)
 except FileNotFoundError:
     data = {}
+except json.JSONDecodeError:
+    print('Warning: ~/.claude.json is malformed — starting fresh (prior interrupted write?)')
+    data = {}
 
 data.setdefault('projects', {}).setdefault(sandboxes_key, {})
 proj = data['projects'][sandboxes_key]
