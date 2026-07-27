@@ -31,6 +31,23 @@ Note: This must be run as a user with passwordless sudo access (e.g. the `pi` us
 - Enables daily apt periodic updates
 - Adds `/etc/sudoers.d/90-lucos-agent-apt-readonly` so `lucos-agent` can run `sudo apt list --upgradable`
 
+### `setup-apt-timer-stagger.sh`
+
+Offsets salvare's `apt-daily-upgrade.timer` so it doesn't fire in the same window as xwing's — see the script's header comment for the full rationale (independent `RandomizedDelaySec` draws don't guarantee separation between hosts; a deterministic offset does).
+
+**Run once per host** (safe to run unmodified on both — it's a no-op on any host that isn't salvare):
+
+```bash
+ssh <host>.s.l42.eu 'sudo bash -s' < pi-hosts/setup-apt-timer-stagger.sh
+```
+
+Note: Must be run as a user with passwordless sudo access (e.g. the `pi` user).
+
+**What it does:**
+- On salvare: writes `/etc/systemd/system/apt-daily-upgrade.timer.d/lucos-stagger.conf` overriding `OnCalendar` to `*-*-* 12:00`, then reloads systemd and restarts the timer so the new schedule takes effect immediately
+- On any other host (e.g. xwing): no-op — stays on the stock `06:00` schedule by design
+- Does not change `RandomizedDelaySec` on either host
+
 ### `setup-journald.sh`
 
 Configures systemd journal storage to be persistent, so logs survive reboots.
