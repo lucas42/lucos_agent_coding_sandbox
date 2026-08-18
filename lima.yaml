@@ -687,6 +687,16 @@ PYEOF
         echo "$PRUNE_ENTRY" >> "$CRON_TMP"
       fi
 
+      # return-to-main.sh normally runs via the post-turn Stop hook, but that
+      # only fires while a session is live. This cron entry makes the shared
+      # ~/.claude checkout's HEAD/index keep converging with origin/main (via
+      # a guarded mixed reset when on main) even with no session running.
+      # lucos_claude_config#127.
+      RETURN_TO_MAIN_ENTRY="*/15 * * * * $HOME/.claude/scripts/return-to-main.sh >> $HOME/.claude/scripts/return-to-main.log 2>&1"
+      if ! grep -qF "return-to-main.sh" "$CRON_TMP"; then
+        echo "$RETURN_TO_MAIN_ENTRY" >> "$CRON_TMP"
+      fi
+
       # Weekly Docker build-cache + dangling-image prune (Sundays 03:00 UTC).
       # Build cache accumulates silently with every docker build run and can fill
       # the 100GB disk over weeks. `docker builder prune -f` removes all inactive
