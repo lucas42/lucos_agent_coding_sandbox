@@ -8,7 +8,7 @@ These hosts run Raspberry Pi OS / Debian and are not managed by Lima. They requi
 
 ### `setup-unattended-upgrades.sh`
 
-Installs and configures automatic security-only OS patching, and adds a read-only sudoers entry allowing `lucos-agent` to check upgrade status.
+Installs and configures automatic OS patching — security-only for Debian, full (not security-only) for Docker and Raspberry Pi Foundation packages — and adds a read-only sudoers entry allowing `lucos-agent` to check upgrade status. See lucas42/lucos_agent_coding_sandbox#98 and #100 for the design record.
 
 **Run once per host** (and again if re-provisioning):
 
@@ -27,9 +27,11 @@ Note: This must be run as a user with passwordless sudo access (e.g. the `pi` us
 
 **What it does:**
 - Installs `unattended-upgrades` if not already present
-- Configures security-only automatic upgrades (`Debian:${CODENAME}-security`)
+- Configures security-only automatic upgrades for Debian (`Debian:${CODENAME}-security`)
+- Configures full automatic upgrades (not security-only) for Docker and Raspberry Pi Foundation packages, matched by origin only (`Unattended-Upgrade::Origins-Pattern`) — no archive/codename constraint, since Raspberry Pi Foundation's archive field (`stable`/`oldstable`) isn't the Debian codename and that mapping shifts at release boundaries
 - Enables daily apt periodic updates
 - Adds `/etc/sudoers.d/90-lucos-agent-apt-readonly` so `lucos-agent` can run `sudo apt list --upgradable`
+- `Package-Blacklist` stays empty and `Automatic-Reboot` stays `false` for all origins — no carve-outs (decided on lucas42/lucos_agent_coding_sandbox#98)
 
 ### `setup-apt-timer-stagger.sh`
 
