@@ -2,13 +2,25 @@
 # setup-unattended-upgrades.sh — Configure automatic security updates on Pi hosts.
 #
 # Purpose:
-#   1. Install and configure unattended-upgrades for Debian security packages only.
+#   1. Install and configure unattended-upgrades for Debian security packages,
+#      plus full (not security-only) auto-apply of Docker and Raspberry Pi
+#      Foundation origin packages.
 #   2. Add a read-only sudoers entry allowing lucos-agent to run 'apt list --upgradable'
 #      without a password, so the agent can observe (but not apply) patch status.
 #
 # Design decisions:
-#   - Security-only (not all upgrades): minimises the risk of a routine update
-#     breaking services. Security patches have a much higher value/risk ratio.
+#   - Debian: security-only (not all upgrades): minimises the risk of a routine
+#     update breaking services. Security patches have a much higher value/risk ratio.
+#   - Docker and Raspberry Pi Foundation: full auto-apply, not restricted to a
+#     security-equivalent subset — neither origin publishes one. Decided on
+#     lucas42/lucos_agent_coding_sandbox#98 (see also #100): Package-Blacklist stays
+#     empty and Automatic-Reboot stays "false" — no carve-outs for either origin.
+#   - Origins-Pattern (origin-only match) for Docker/RPi Foundation rather than the
+#     Allowed-Origins "Origin:Archive" syntax used for Debian: RPi Foundation's
+#     archive field is "stable"/"oldstable", not the Debian codename, and that
+#     mapping shifts at every Debian release boundary — an origin-only pattern is
+#     immune to both. Docker's archive field happens to equal the codename today,
+#     but there's no reason to rely on that coincidence either.
 #   - No apt sudo access for lucos-agent: avoids introducing a privilege escalation
 #     path via the agent SSH key. The host patches itself autonomously.
 #   - Read-only apt list sudoers: allows observability without write access.
@@ -49,23 +61,32 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 2: Configure unattended-upgrades for security packages only
+# Step 2: Configure unattended-upgrades origins
 # ---------------------------------------------------------------------------
 echo ""
 echo "Step 2: Configuring unattended-upgrades..."
 
 # Write the local override configuration.
-# Scoped to Debian:${CODENAME}-security only — no routine updates.
+# Allowed-Origins: Debian:${CODENAME}-security only — no routine Debian updates.
+# Origins-Pattern: Docker and Raspberry Pi Foundation, matched by origin only (no
+#   archive/codename constraint — see header comment for why). These auto-apply
+#   in full, not just a security subset — neither origin publishes one.
 # AutoFixInterruptedDpkg: recover from interrupted installs automatically.
 # MinimalSteps: apply each upgrade as a minimal atomic step, reducing breakage risk.
 # Remove: do NOT auto-remove unused packages (safer, avoids unintended removals).
 cat > /etc/apt/apt.conf.d/51lucos-security-upgrades << APTCONF
-// lucos Pi host — security-only automatic upgrades.
+// lucos Pi host — security-only Debian upgrades, plus full Docker/Raspberry Pi
+// Foundation upgrades.
 // Managed by lucos_agent_coding_sandbox/pi-hosts/setup-unattended-upgrades.sh
 // Do not edit manually — changes will be overwritten by re-provisioning.
 
 Unattended-Upgrade::Allowed-Origins {
     "Debian:${CODENAME}-security";
+};
+
+Unattended-Upgrade::Origins-Pattern {
+    "origin=Docker";
+    "origin=Raspberry Pi Foundation";
 };
 
 Unattended-Upgrade::AutoFixInterruptedDpkg "true";
@@ -125,11 +146,12 @@ echo "Step 5: Verifying setup..."
 
 echo "  Installed version: $(dpkg -l unattended-upgrades | awk '/^ii/ {print $3}')"
 echo "  Allowed origins: $(grep 'Allowed-Origins' /etc/apt/apt.conf.d/51lucos-security-upgrades -A2)"
+echo "  Origins pattern: $(grep 'Origins-Pattern' /etc/apt/apt.conf.d/51lucos-security-upgrades -A3)"
 echo "  Sudoers entry: $(cat $SUDOERS_FILE | grep -v '^#' | grep -v '^$')"
 
 echo ""
 echo "Setup complete."
-echo "  Security upgrades will run daily via APT periodic."
+echo "  Debian security, Docker, and Raspberry Pi Foundation upgrades will run daily via APT periodic."
 echo "  lucos-agent can check upgrade status with: sudo apt list --upgradable"
 echo ""
 echo "To test manually: unattended-upgrade --dry-run --debug 2>&1 | head -20"
