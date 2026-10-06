@@ -1,0 +1,6 @@
+# Global git config keys the sandbox is expected to have (lowercased, one per line).
+# Must match the `git config --global <key>` lines in lima.yaml; check-drift.sh enforces this.
+url.git@github.com:.insteadof
+init.defaultbranch
+pull.rebase
+core.hookspath
