@@ -4,3 +4,4 @@ url.git@github.com:.insteadof
 init.defaultbranch
 pull.rebase
 core.hookspath
+user.useconfigonly

@@ -518,6 +518,9 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
       git config --global init.defaultBranch main
       git config --global pull.rebase false
 
+      # Never guess a git identity: bare commits/rebases fail rather than misattribute (#112).
+      git config --global user.useConfigOnly true
+
       # Strip Claude Co-Authored-By trailers from every commit (lucas42/lucos_agent#87).
       # Fails open if the path is absent (e.g. lucos_agent not yet cloned).
       git config --global core.hooksPath "$HOME/sandboxes/lucos_agent/git-hooks"
