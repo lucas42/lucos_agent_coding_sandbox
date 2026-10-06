@@ -10,6 +10,9 @@ machine or its credentials.
 |---|---|
 | `lima.yaml` | Lima VM configuration |
 | `setup-repos.sh` | Host-readable copy of the repo setup script (canonical version is embedded in `lima.yaml`) |
+| `check-drift.sh` | Reports live-VM drift from `lima.yaml` for global git config keys and the user crontab (run on the VM; exits 1 on drift) |
+| `drift-manifest/` | Expected git config keys and cron entries read by `check-drift.sh`; update alongside `lima.yaml` |
+| `tests/check-drift-test.sh` | Tests for `check-drift.sh` |
 
 ---
 
