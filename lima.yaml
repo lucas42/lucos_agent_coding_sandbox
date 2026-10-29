@@ -710,6 +710,12 @@ PYEOF
         echo "$PRUNE_WORKTREES_ENTRY" >> "$CRON_TMP"
       fi
 
+      # Hourly fetch + safe fast-forward of ~/sandboxes checkouts (lucos_agent_coding_sandbox#96).
+      REFRESH_SANDBOXES_ENTRY="7 * * * * $HOME/.claude/scripts/refresh-sandboxes.sh >> $HOME/.claude/scripts/refresh-sandboxes.log 2>&1"
+      if ! grep -qF "refresh-sandboxes.sh" "$CRON_TMP"; then
+        echo "$REFRESH_SANDBOXES_ENTRY" >> "$CRON_TMP"
+      fi
+
       # Weekly Docker build-cache + dangling-image prune (Sundays 03:00 UTC).
       # Build cache accumulates silently with every docker build run and can fill
       # the 100GB disk over weeks. `docker builder prune -f` removes all inactive

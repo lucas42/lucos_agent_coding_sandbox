@@ -5,3 +5,4 @@
 */15 * * * * $HOME/.claude/scripts/return-to-main.sh >> $HOME/.claude/scripts/return-to-main.log 2>&1
 0 3 * * 0 docker builder prune -f >> $HOME/.claude/scripts/docker-prune.log 2>&1 && docker image prune -f >> $HOME/.claude/scripts/docker-prune.log 2>&1
 17 4 * * * $HOME/.claude/scripts/prune-worktrees.sh >> $HOME/.claude/scripts/prune-worktrees.log 2>&1
+7 * * * * $HOME/.claude/scripts/refresh-sandboxes.sh >> $HOME/.claude/scripts/refresh-sandboxes.log 2>&1
